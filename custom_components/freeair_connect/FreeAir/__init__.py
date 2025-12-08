@@ -366,7 +366,6 @@ class Data:
                 / (self.temp_extract - self.temp_outdoor)
             )
             + 0.5,
-            1,
         )
 
     def _as_signed(self, value, potenz):
@@ -399,6 +398,16 @@ class Data:
         return None
 
 
+# FIX: Custom headers to avoid Brotli encoding issues with Python 3.13
+_DEFAULT_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate",  # Explicitly exclude 'br' (Brotli)
+    "Accept-Language": "en-US,en;q=0.5",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Connection": "keep-alive",
+}
+
+
 class Connect:
     def __init__(self, serial_no, password):
         self._serial_no = serial_no
@@ -407,6 +416,8 @@ class Connect:
         self._fad = None
         self._error_text = {}
         self._session = requests.Session()
+        # FIX: Set default headers for the session to avoid Brotli issues
+        self._session.headers.update(_DEFAULT_HEADERS)
 
     @property
     def fetchtime(self):
@@ -433,6 +444,8 @@ class Connect:
         ).raise_for_status()
 
     def fetch(self):
+        # FIX: Initialize blob to None and properly handle exceptions
+        blob = None
         try:
             self._login()
             blob = self._fetch_data()
@@ -440,6 +453,12 @@ class Connect:
             self._fad = None
             self._error_text = {}
             _LOGGER.error(f"fetch failed for SN {self._serial_no}: {error}")
+            return  # FIX: Return early on error to prevent UnboundLocalError
+
+        # FIX: Additional safety check
+        if blob is None:
+            _LOGGER.error(f"No data received for SN {self._serial_no}")
+            return
 
         # split blob
         parts = blob.split("timestamp")
@@ -449,6 +468,7 @@ class Connect:
         version_fa100 = parts[3]
 
         self._fad = self._parse(encrypted_data, timestamp, version, version_fa100)
+        self._fetchtime = timestamp  # FIX: Update fetchtime on successful fetch
 
         if self._fad.error_state not in (0, 22):
             # fetch error string
