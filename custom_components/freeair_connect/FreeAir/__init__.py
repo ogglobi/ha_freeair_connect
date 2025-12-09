@@ -366,6 +366,7 @@ class Data:
                 / (self.temp_extract - self.temp_outdoor)
             )
             + 0.5,
+            1,
         )
 
     def _as_signed(self, value, potenz):
@@ -398,13 +399,8 @@ class Data:
         return None
 
 
-# FIX: Custom headers to avoid Brotli encoding issues with Python 3.13
 _DEFAULT_HEADERS = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Encoding": "gzip, deflate",  # Explicitly exclude 'br' (Brotli)
-    "Accept-Language": "en-US,en;q=0.5",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Connection": "keep-alive",
+    "Accept-Encoding": "gzip, deflate",
 }
 
 
@@ -468,7 +464,7 @@ class Connect:
         version_fa100 = parts[3]
 
         self._fad = self._parse(encrypted_data, timestamp, version, version_fa100)
-        self._fetchtime = timestamp  # FIX: Update fetchtime on successful fetch
+        self._fetchtime = timestamp
 
         if self._fad.error_state not in (0, 22):
             # fetch error string
